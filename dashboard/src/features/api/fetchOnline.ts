@@ -58,7 +58,6 @@ export async function fetchOnlineRows(): Promise<{
     headers: { Accept: 'application/json' },
   })
 
-  const contentType = res.headers.get('content-type') ?? ''
   const bodyText = await res.text()
 
   let json: WorkflowRunResponse
