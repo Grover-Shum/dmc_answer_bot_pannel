@@ -11,16 +11,13 @@ export default async function handler(req: any, res: any) {
 
     const token = (process.env.BYTEDANCE_BEARER_TOKEN ?? '').trim()
     const workflowId = (process.env.BYTEDANCE_WORKFLOW_ID ?? '').trim()
-    const url = typeof req?.url === 'string' ? req.url : ''
-    const debug =
-      Boolean(req?.query?.debug) ||
-      (() => {
-        try {
-          return new URL(`https://x${url}`).searchParams.get('debug') === '1'
-        } catch {
-          return false
-        }
-      })()
+    const url = typeof req?.url === 'string' ? req.url : '/'
+    let debug = false
+    try {
+      debug = new URL(url, 'https://x').searchParams.get('debug') === '1'
+    } catch {
+      debug = false
+    }
 
     if (!token) {
       res.statusCode = 500
@@ -92,13 +89,21 @@ export default async function handler(req: any, res: any) {
         : body
     res.end(JSON.stringify(out ?? { code: upstream.status, msg: 'Upstream error' }))
   } catch (e) {
+    const anyErr = e as any
+    const causeCode = anyErr?.cause?.code
+    const msg =
+      causeCode === 'UND_ERR_CONNECT_TIMEOUT'
+        ? 'Connect timeout to bot-open-api.bytedance.net:443'
+        : e instanceof Error
+          ? e.message
+          : 'Server error'
     res.statusCode = 500
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Cache-Control', 'no-store')
     res.end(
       JSON.stringify({
         code: 500,
-        msg: e instanceof Error ? e.message : 'Server error',
+        msg,
         hasToken: Boolean((process.env.BYTEDANCE_BEARER_TOKEN ?? '').trim()),
         hasWorkflowId: Boolean((process.env.BYTEDANCE_WORKFLOW_ID ?? '').trim()),
       }),

@@ -2,17 +2,26 @@ import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { bucketByHour, computeMetrics, groupCount } from '../../features/metrics/metrics'
 import { fetchOnlineRows } from '../../features/api/fetchOnline'
+import { createHorizontalBarChartOption, createTrendChartOption } from '../../features/charts/chartConfig'
 import { useDataStore } from '../../store/useDataStore'
 import { useUiStore } from '../../store/useUiStore'
+import {
+  DATE_CONSTANTS,
+  THEME_CONSTANTS,
+  ERROR_MESSAGES,
+  UI_CONSTANTS,
+  CSV_CONSTANTS,
+} from '../../constants'
 import type { NormalizedRow } from '../../types'
 import { ChartCard } from '../components/ChartCard'
 import { KpiCard } from '../components/KpiCard'
 import { Modal } from '../components/Modal'
 
 function formatSeconds(v: number | null): string {
-  if (v == null) return '-'
-  if (v < 1) return `${Math.round(v * 1000)} ms`
-  if (v < 60) return `${v.toFixed(1)} s`
+  if (v == null) return UI_CONSTANTS.DISPLAY.EMPTY
+  if (v < DATE_CONSTANTS.TIME_THRESHOLDS.MILLISECOND)
+    return `${Math.round(v * 1000)} ms`
+  if (v < DATE_CONSTANTS.TIME_THRESHOLDS.SECOND) return `${v.toFixed(1)} s`
   return `${(v / 60).toFixed(1)} min`
 }
 
@@ -76,8 +85,8 @@ export function DashboardPage() {
     return timeBounds.max ? toDatetimeLocalValue(timeBounds.max) : ''
   }, [timeBounds.max])
 
-  const [project, setProject] = useState<string>('全部')
-  const [intent, setIntent] = useState<string>('全部')
+  const [project, setProject] = useState<string>(UI_CONSTANTS.DISPLAY.ALL)
+  const [intent, setIntent] = useState<string>(UI_CONSTANTS.DISPLAY.ALL)
   const [keyword, setKeyword] = useState<string>('')
   const keywordDeferred = useDeferredValue(keyword)
   const [fromTime, setFromTime] = useState<string>('')
@@ -89,8 +98,8 @@ export function DashboardPage() {
     const from = fromDatetimeLocalValue(fromTime || defaultFromTime)
     const to = fromDatetimeLocalValue(toTime || defaultToTime)
     return rows.filter((r) => {
-      if (project !== '全部' && r.projectName !== project) return false
-      if (intent !== '全部' && r.intent !== intent) return false
+      if (project !== UI_CONSTANTS.DISPLAY.ALL && r.projectName !== project) return false
+      if (intent !== UI_CONSTANTS.DISPLAY.ALL && r.intent !== intent) return false
       if (kw) {
         const t = `${r.question} ${r.answer}`
         if (!t.includes(kw)) return false
@@ -105,16 +114,29 @@ export function DashboardPage() {
   const metrics = useMemo(() => computeMetrics(filteredRows), [filteredRows])
   const trend = useMemo(() => bucketByHour(filteredRows), [filteredRows])
   const intentsTop = useMemo(
-    () => groupCount(filteredRows, (r) => r.intent || '未标注', 12),
+    () =>
+      groupCount(
+        filteredRows,
+        (r) => r.intent || UI_CONSTANTS.DISPLAY.UNLABELED,
+        UI_CONSTANTS.CHART.DEFAULT_TOP_N,
+      ),
     [filteredRows],
   )
   const projectsTop = useMemo(
-    () => groupCount(filteredRows, (r) => r.projectName || '未标注', 12),
+    () =>
+      groupCount(
+        filteredRows,
+        (r) => r.projectName || UI_CONSTANTS.DISPLAY.UNLABELED,
+        UI_CONSTANTS.CHART.DEFAULT_TOP_N,
+      ),
     [filteredRows],
   )
 
   const latestRows = useMemo(() => {
-    return filteredRows.slice().sort(sortByTimeDesc).slice(0, 50)
+    return filteredRows
+      .slice()
+      .sort(sortByTimeDesc)
+      .slice(0, UI_CONSTANTS.TABLE.LATEST_ROWS_LIMIT)
   }, [filteredRows])
 
   useEffect(() => {
@@ -128,7 +150,7 @@ export function DashboardPage() {
         if (!cancelled) setData(data)
       } catch (e) {
         if (!cancelled) {
-          setOnlineError(e instanceof Error ? e.message : '线上数据拉取失败')
+          setOnlineError(e instanceof Error ? e.message : ERROR_MESSAGES.FETCH_ONLINE_FAILED)
         }
       } finally {
         if (!cancelled) setLoadingOnline(false)
@@ -139,124 +161,19 @@ export function DashboardPage() {
     }
   }, [rows.length, setData])
 
-  const axisLabelColor = theme === 'dark' ? 'rgba(255,255,255,0.72)' : 'rgba(15,23,42,0.72)'
-  const axisLineColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.14)'
-  const splitLineColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)'
-  const tooltipBg = theme === 'dark' ? 'rgba(17,24,39,0.94)' : 'rgba(255,255,255,0.96)'
-  const tooltipText = theme === 'dark' ? 'rgba(255,255,255,0.86)' : 'rgba(15,23,42,0.9)'
-  const tooltipBorder = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.14)'
+  const isDarkTheme = theme === THEME_CONSTANTS.DARK
 
   const trendOption = useMemo(() => {
-    return {
-      color: ['#7c5cff'],
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: tooltipBg,
-        borderColor: tooltipBorder,
-        textStyle: { color: tooltipText },
-      },
-      grid: { left: 42, right: 20, top: 26, bottom: 34 },
-      xAxis: {
-        type: 'category',
-        data: trend.map((p) => p.x),
-        axisLabel: { color: axisLabelColor },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { color: axisLabelColor },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
-      dataZoom: [
-        { type: 'inside', xAxisIndex: 0 },
-        { type: 'slider', xAxisIndex: 0, height: 18, bottom: 6 },
-      ],
-      series: [
-        {
-          type: 'line',
-          smooth: true,
-          data: trend.map((p) => p.y),
-          showSymbol: false,
-          lineStyle: { width: 2 },
-          areaStyle: { opacity: 0.18 },
-        },
-      ],
-    }
-  }, [trend, axisLabelColor, axisLineColor, splitLineColor, tooltipBg, tooltipBorder, tooltipText])
+    return createTrendChartOption(trend, isDarkTheme)
+  }, [trend, isDarkTheme])
 
   const intentsOption = useMemo(() => {
-    return {
-      color: ['#22c55e'],
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        backgroundColor: tooltipBg,
-        borderColor: tooltipBorder,
-        textStyle: { color: tooltipText },
-      },
-      grid: { left: 150, right: 18, top: 18, bottom: 18 },
-      xAxis: {
-        type: 'value',
-        axisLabel: { color: axisLabelColor },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
-      yAxis: {
-        type: 'category',
-        data: intentsTop.map((d) => d.name),
-        inverse: true,
-        axisLabel: { color: axisLabelColor },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      series: [
-        { type: 'bar', data: intentsTop.map((d) => d.value), barMaxWidth: 14 },
-      ],
-    }
-  }, [
-    intentsTop,
-    axisLabelColor,
-    axisLineColor,
-    splitLineColor,
-    tooltipBg,
-    tooltipBorder,
-    tooltipText,
-  ])
+    return createHorizontalBarChartOption(intentsTop, isDarkTheme, '#22c55e')
+  }, [intentsTop, isDarkTheme])
 
   const projectsOption = useMemo(() => {
-    return {
-      color: ['#60a5fa'],
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        backgroundColor: tooltipBg,
-        borderColor: tooltipBorder,
-        textStyle: { color: tooltipText },
-      },
-      grid: { left: 150, right: 18, top: 18, bottom: 18 },
-      xAxis: {
-        type: 'value',
-        axisLabel: { color: axisLabelColor },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
-      yAxis: {
-        type: 'category',
-        data: projectsTop.map((d) => d.name),
-        inverse: true,
-        axisLabel: { color: axisLabelColor },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      series: [
-        { type: 'bar', data: projectsTop.map((d) => d.value), barMaxWidth: 14 },
-      ],
-    }
-  }, [
-    projectsTop,
-    axisLabelColor,
-    axisLineColor,
-    splitLineColor,
-    tooltipBg,
-    tooltipBorder,
-    tooltipText,
-  ])
+    return createHorizontalBarChartOption(projectsTop, isDarkTheme, '#60a5fa')
+  }, [projectsTop, isDarkTheme])
 
   const resultText = useMemo(() => {
     const total = rows.length
@@ -274,15 +191,15 @@ export function DashboardPage() {
   }, [project, intent, keyword, fromTime, toTime])
 
   function resetFilters() {
-    setProject('全部')
-    setIntent('全部')
+    setProject(UI_CONSTANTS.DISPLAY.ALL)
+    setIntent(UI_CONSTANTS.DISPLAY.ALL)
     setKeyword('')
     setFromTime('')
     setToTime('')
   }
 
   function exportCsv() {
-    const header = ['session_id', 'question_time', 'answer_time', 'project_name', 'intent', 'question', 'answer']
+    const header = CSV_CONSTANTS.HEADERS
     const rowsOut = filteredRows.map((r) => [
       r.sessionId,
       r.questionTime ? r.questionTime.toISOString() : '',
