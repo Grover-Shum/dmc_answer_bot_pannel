@@ -11,6 +11,16 @@ export default async function handler(req: any, res: any) {
 
     const token = (process.env.BYTEDANCE_BEARER_TOKEN ?? '').trim()
     const workflowId = (process.env.BYTEDANCE_WORKFLOW_ID ?? '').trim()
+    const url = typeof req?.url === 'string' ? req.url : ''
+    const debug =
+      Boolean(req?.query?.debug) ||
+      (() => {
+        try {
+          return new URL(`https://x${url}`).searchParams.get('debug') === '1'
+        } catch {
+          return false
+        }
+      })()
 
     if (!token) {
       res.statusCode = 500
@@ -60,7 +70,27 @@ export default async function handler(req: any, res: any) {
     res.statusCode = upstream.status
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Cache-Control', 'no-store')
-    res.end(JSON.stringify(parsed ?? { code: upstream.status, msg: 'Upstream error' }))
+    const preview = text.slice(0, 240)
+    const body =
+      parsed && typeof parsed === 'object'
+        ? parsed
+        : {
+            code: upstream.status,
+            msg: 'Upstream response is not JSON',
+            rawPreview: preview,
+          }
+    const out =
+      debug && body && typeof body === 'object'
+        ? {
+            ...(body as Record<string, unknown>),
+            _debug: {
+              upstreamStatus: upstream.status,
+              hasToken: true,
+              hasWorkflowId: true,
+            },
+          }
+        : body
+    res.end(JSON.stringify(out ?? { code: upstream.status, msg: 'Upstream error' }))
   } catch (e) {
     res.statusCode = 500
     res.setHeader('Content-Type', 'application/json')
