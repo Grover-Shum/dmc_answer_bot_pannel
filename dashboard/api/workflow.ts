@@ -46,7 +46,7 @@ export default async function handler(req: any, res: any) {
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 15_000)
-    const upstream = await fetch('https://bot-open-api.bytedance.net/v1/workflow/run', {
+    const upstream = await fetch('https://api.coze.cn/v1/workflow/run', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -89,21 +89,13 @@ export default async function handler(req: any, res: any) {
         : body
     res.end(JSON.stringify(out ?? { code: upstream.status, msg: 'Upstream error' }))
   } catch (e) {
-    const anyErr = e as any
-    const causeCode = anyErr?.cause?.code
-    const msg =
-      causeCode === 'UND_ERR_CONNECT_TIMEOUT'
-        ? 'Connect timeout to bot-open-api.bytedance.net:443'
-        : e instanceof Error
-          ? e.message
-          : 'Server error'
     res.statusCode = 500
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Cache-Control', 'no-store')
     res.end(
       JSON.stringify({
         code: 500,
-        msg,
+        msg: e instanceof Error ? e.message : 'Server error',
         hasToken: Boolean((process.env.BYTEDANCE_BEARER_TOKEN ?? '').trim()),
         hasWorkflowId: Boolean((process.env.BYTEDANCE_WORKFLOW_ID ?? '').trim()),
       }),
