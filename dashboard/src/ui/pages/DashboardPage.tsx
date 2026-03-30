@@ -1,6 +1,7 @@
-import { useMemo, useState, useDeferredValue } from 'react'
+import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { bucketByHour, computeMetrics, groupCount } from '../../features/metrics/metrics'
+import { fetchOnlineRows } from '../../features/api/fetchOnline'
 import { useDataStore } from '../../store/useDataStore'
 import { useUiStore } from '../../store/useUiStore'
 import type { NormalizedRow } from '../../types'
@@ -38,7 +39,10 @@ function sortByTimeDesc(a: NormalizedRow, b: NormalizedRow): number {
 export function DashboardPage() {
   const navigate = useNavigate()
   const { rows } = useDataStore()
+  const setData = useDataStore((s) => s.setData)
   const theme = useUiStore((s) => s.theme)
+  const [loadingOnline, setLoadingOnline] = useState(false)
+  const [onlineError, setOnlineError] = useState<string | null>(null)
 
   const allProjects = useMemo(() => {
     const s = new Set<string>()
@@ -112,6 +116,28 @@ export function DashboardPage() {
   const latestRows = useMemo(() => {
     return filteredRows.slice().sort(sortByTimeDesc).slice(0, 50)
   }, [filteredRows])
+
+  useEffect(() => {
+    if (rows.length > 0) return
+    let cancelled = false
+    setLoadingOnline(true)
+    setOnlineError(null)
+    void (async () => {
+      try {
+        const data = await fetchOnlineRows()
+        if (!cancelled) setData(data)
+      } catch (e) {
+        if (!cancelled) {
+          setOnlineError(e instanceof Error ? e.message : '线上数据拉取失败')
+        }
+      } finally {
+        if (!cancelled) setLoadingOnline(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [rows.length, setData])
 
   const axisLabelColor = theme === 'dark' ? 'rgba(255,255,255,0.72)' : 'rgba(15,23,42,0.72)'
   const axisLineColor = theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.14)'
@@ -281,11 +307,47 @@ export function DashboardPage() {
     return (
       <div className="page">
         <div className="card">
-          <div className="card-title">还没有数据</div>
-          <div className="card-subtitle">先导入 Excel 数据，再查看看板。</div>
-          <button className="btn" onClick={() => navigate('/')}>
-            去上传
-          </button>
+          <div className="card-title">
+            {loadingOnline ? '正在拉取线上数据…' : '还没有数据'}
+          </div>
+          <div className="card-subtitle">
+            {loadingOnline
+              ? '首次进入看板会自动拉取最新数据。'
+              : onlineError
+                ? `线上拉取失败：${onlineError}`
+                : '先导入 Excel 数据，或检查线上数据服务配置。'}
+          </div>
+          <div className="card-actions">
+            <button
+              className="btn"
+              onClick={() => {
+                navigate('/')
+              }}
+              disabled={loadingOnline}
+            >
+              去上传
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setLoadingOnline(true)
+                setOnlineError(null)
+                void (async () => {
+                  try {
+                    const data = await fetchOnlineRows()
+                    setData(data)
+                  } catch (e) {
+                    setOnlineError(e instanceof Error ? e.message : '线上数据拉取失败')
+                  } finally {
+                    setLoadingOnline(false)
+                  }
+                })()
+              }}
+              disabled={loadingOnline}
+            >
+              重试拉取
+            </button>
+          </div>
         </div>
       </div>
     )
