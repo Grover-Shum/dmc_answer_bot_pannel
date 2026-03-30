@@ -1,0 +1,14 @@
+{
+  "name": "data-agent-panel",
+  "private": true,
+  "workspaces": [
+    "dashboard"
+  ],
+  "scripts": {
+    "dev": "npm --workspace dashboard run dev -- --host 0.0.0.0 --port 5173",
+    "build": "npm --workspace dashboard run build",
+    "lint": "npm --workspace dashboard run lint",
+    "start": "npm --workspace dashboard run preview -- --host 0.0.0.0 --port ${PORT:-4173}"
+  }
+}
+
