@@ -182,6 +182,8 @@ export function createPieChartOption(
 ): unknown {
   const colors = getThemeColors(isDark)
 
+  const legendType = data.length > 10 ? 'scroll' : 'plain'
+
   return {
     tooltip: {
       trigger: 'item',
@@ -191,18 +193,19 @@ export function createPieChartOption(
       formatter: '{b}: {c} ({d}%)',
     },
     legend: {
-      orient: 'vertical',
-      left: 'left',
+      orient: 'horizontal',
+      left: 'center',
+      bottom: 0,
       textStyle: { color: colors.axisLabel },
-      type: data.length > 10 ? 'scroll' : 'plain',
+      type: legendType,
       pageTextStyle: { color: colors.axisLabel },
     },
     color: ['#7c5cff', '#22c55e', '#60a5fa', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'],
     series: [
       {
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['60', '50%'],
+        radius: ['36%', '62%'],
+        center: ['50%', '42%'],
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 8,
