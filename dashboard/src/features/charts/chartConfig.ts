@@ -72,33 +72,38 @@ export function createTrendChartOption(
 ): unknown {
   const { tooltip, colors } = createBaseChartConfig(isDark)
 
+  const chartData = data.length > 0 ? data : [{ x: '', y: 0 }]
+
   return {
     color: [color],
     tooltip,
-    grid: { left: 42, right: 20, top: 26, bottom: 34 },
+    grid: { left: 42, right: 20, top: 26, bottom: data.length > 1 ? 34 : 20 },
     xAxis: {
       type: 'category',
-      data: data.map((p) => p.x),
+      data: chartData.map((p) => p.x),
       axisLabel: { color: colors.axisLabel },
       axisLine: { lineStyle: { color: colors.axisLine } },
+      axisTick: { show: data.length > 0 },
     },
     yAxis: {
       type: 'value',
       axisLabel: { color: colors.axisLabel },
       splitLine: { lineStyle: { color: colors.splitLine } },
+      minInterval: 1,
+      min: 0,
     },
-    dataZoom: [
+    dataZoom: data.length > 2 ? [
       { type: 'inside', xAxisIndex: 0 },
       { type: 'slider', xAxisIndex: 0, height: 18, bottom: 6 },
-    ],
+    ] : undefined,
     series: [
       {
         type: 'line',
-        smooth: true,
-        data: data.map((p) => p.y),
-        showSymbol: false,
+        smooth: data.length > 1,
+        data: chartData.map((p) => p.y),
+        showSymbol: data.length > 0,
         lineStyle: { width: 2 },
-        areaStyle: { opacity: 0.18 },
+        areaStyle: data.length > 0 ? { opacity: 0.18 } : undefined,
       },
     ],
   }
