@@ -9,7 +9,6 @@ import { createHorizontalBarChartOption, createTrendChartOption, createPieChartO
 import { useDataStore } from '../../store/useDataStore'
 import { useUiStore } from '../../store/useUiStore'
 import {
-  DATE_CONSTANTS,
   THEME_CONSTANTS,
   ERROR_MESSAGES,
   UI_CONSTANTS,
@@ -26,12 +25,9 @@ type ChartClickParams = {
   dataIndex?: number
 }
 
-function formatSeconds(v: number | null): string {
-  if (v == null) return UI_CONSTANTS.DISPLAY.EMPTY
-  if (v < DATE_CONSTANTS.TIME_THRESHOLDS.MILLISECOND)
-    return `${Math.round(v * 1000)} ms`
-  if (v < DATE_CONSTANTS.TIME_THRESHOLDS.SECOND) return `${v.toFixed(1)} s`
-  return `${(v / 60).toFixed(1)} min`
+function formatPercent(v: number): string {
+  if (!Number.isFinite(v)) return UI_CONSTANTS.DISPLAY.EMPTY
+  return `${(v * 100).toFixed(1)}%`
 }
 
 function toDatetimeLocalValue(d: Date): string {
@@ -561,17 +557,32 @@ export function DashboardPage() {
       <div className="kpi-grid">
         <KpiCard title="问答条数" value={String(metrics.interactions)} />
         <KpiCard title="会话数" value={String(metrics.uniqueSessions)} />
-        <KpiCard title="项目数" value={String(metrics.uniqueProjects)} />
-        <KpiCard title="意图数" value={String(metrics.uniqueIntents)} />
-        <KpiCard title="平均响应" value={formatSeconds(metrics.avgResponseSeconds)} />
+        <KpiCard title="问题数（去重）" value={String(metrics.uniqueQuestions)} />
         <KpiCard
-          title="P50 / P90"
-          value={`${formatSeconds(metrics.p50ResponseSeconds)} / ${formatSeconds(
-            metrics.p90ResponseSeconds,
-          )}`}
+          title="转人工率"
+          value={formatPercent(metrics.handoffRate)}
+          sub={`${metrics.handoffCount} 次`}
         />
-        <KpiCard title="转人工" value={String(metrics.handoffCount)} />
-        <KpiCard title="风险意图" value={String(metrics.riskCount)} sub="投诉/退款/退换等" />
+        <KpiCard
+          title="风险意图占比"
+          value={formatPercent(metrics.riskRate)}
+          sub={`${metrics.riskCount} 条`}
+        />
+        <KpiCard
+          title="意图覆盖率"
+          value={formatPercent(1 - metrics.unlabeledIntentRate)}
+          sub={`未标注 ${metrics.unlabeledIntentCount} 条`}
+        />
+        <KpiCard
+          title="Top 意图占比"
+          value={formatPercent(metrics.topIntentShare)}
+          sub={intentsTop[0]?.name ?? UI_CONSTANTS.DISPLAY.EMPTY}
+        />
+        <KpiCard
+          title="重复咨询率"
+          value={formatPercent(metrics.duplicateQuestionRate)}
+          sub={`≈${Math.max(0, metrics.interactions - metrics.uniqueQuestions)} 条重复`}
+        />
       </div>
 
       <div className="card">

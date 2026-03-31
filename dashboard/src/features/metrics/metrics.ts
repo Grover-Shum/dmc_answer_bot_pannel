@@ -5,23 +5,24 @@ export type Metrics = {
   uniqueSessions: number
   uniqueProjects: number
   uniqueIntents: number
-  avgResponseSeconds: number | null
-  p50ResponseSeconds: number | null
-  p90ResponseSeconds: number | null
+  uniqueQuestions: number
   handoffCount: number
+  handoffRate: number
   riskCount: number
+  riskRate: number
+  unlabeledIntentCount: number
+  unlabeledIntentRate: number
+  unlabeledProjectCount: number
+  unlabeledProjectRate: number
+  duplicateQuestionRate: number
+  topIntentShare: number
+  topProjectShare: number
 }
 
 export type BucketPoint = { x: string; y: number }
 export type GroupCount = { name: string; value: number }
 
 export type TrendViewType = 'hour' | 'day' | 'week' | 'month'
-
-function percentile(sorted: number[], p: number): number | null {
-  if (sorted.length === 0) return null
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(p * (sorted.length - 1))))
-  return sorted[idx] ?? null
-}
 
 function isHandoff(r: NormalizedRow): boolean {
   const t = `${r.intent} ${r.answer}`.toLowerCase()
@@ -40,13 +41,36 @@ function isRiskIntent(r: NormalizedRow): boolean {
   )
 }
 
+function isUnlabeledIntent(r: NormalizedRow): boolean {
+  const v = r.intent.trim()
+  if (!v) return true
+  if (/^\d+$/.test(v)) return true
+  return false
+}
+
+function isUnlabeledProject(r: NormalizedRow): boolean {
+  return r.projectName.trim() === ''
+}
+
+function normalizeQuestion(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replaceAll(/\s+/g, '')
+    .replaceAll(/[，。！？、；：,.!?;:()[\]{}"'“”‘’`~@#$%^&*+=<>/\\|-]/g, '')
+}
+
 export function computeMetrics(rows: NormalizedRow[]): Metrics {
   const sessions = new Set<string>()
   const projects = new Set<string>()
   const intents = new Set<string>()
-  const responseSeconds: number[] = []
+  const questions = new Set<string>()
+  const intentCounts = new Map<string, number>()
+  const projectCounts = new Map<string, number>()
   let handoffCount = 0
   let riskCount = 0
+  let unlabeledIntentCount = 0
+  let unlabeledProjectCount = 0
 
   for (const r of rows) {
     if (r.sessionId) sessions.add(r.sessionId)
@@ -54,29 +78,44 @@ export function computeMetrics(rows: NormalizedRow[]): Metrics {
     if (r.intent) intents.add(r.intent)
     if (isHandoff(r)) handoffCount += 1
     if (isRiskIntent(r)) riskCount += 1
+    if (isUnlabeledIntent(r)) unlabeledIntentCount += 1
+    if (isUnlabeledProject(r)) unlabeledProjectCount += 1
 
-    if (r.questionTime && r.answerTime) {
-      const ms = r.answerTime.getTime() - r.questionTime.getTime()
-      if (Number.isFinite(ms) && ms >= 0) responseSeconds.push(ms / 1000)
-    }
+    const q = normalizeQuestion(r.question)
+    if (q) questions.add(q)
+
+    const intentKey = r.intent.trim() || '未标注'
+    intentCounts.set(intentKey, (intentCounts.get(intentKey) ?? 0) + 1)
+
+    const projectKey = r.projectName.trim() || '未标注'
+    projectCounts.set(projectKey, (projectCounts.get(projectKey) ?? 0) + 1)
   }
 
-  responseSeconds.sort((a, b) => a - b)
-  const avgResponseSeconds =
-    responseSeconds.length === 0
-      ? null
-      : responseSeconds.reduce((a, b) => a + b, 0) / responseSeconds.length
+  const interactions = rows.length
+  const safeDiv = (n: number, d: number) => (d <= 0 ? 0 : n / d)
+  const maxCount = (m: Map<string, number>) => {
+    let max = 0
+    for (const v of m.values()) if (v > max) max = v
+    return max
+  }
 
   return {
-    interactions: rows.length,
+    interactions,
     uniqueSessions: sessions.size,
     uniqueProjects: projects.size,
     uniqueIntents: intents.size,
-    avgResponseSeconds,
-    p50ResponseSeconds: percentile(responseSeconds, 0.5),
-    p90ResponseSeconds: percentile(responseSeconds, 0.9),
+    uniqueQuestions: questions.size,
     handoffCount,
     riskCount,
+    handoffRate: safeDiv(handoffCount, interactions),
+    riskRate: safeDiv(riskCount, interactions),
+    unlabeledIntentCount,
+    unlabeledIntentRate: safeDiv(unlabeledIntentCount, interactions),
+    unlabeledProjectCount,
+    unlabeledProjectRate: safeDiv(unlabeledProjectCount, interactions),
+    duplicateQuestionRate: safeDiv(interactions - questions.size, interactions),
+    topIntentShare: safeDiv(maxCount(intentCounts), interactions),
+    topProjectShare: safeDiv(maxCount(projectCounts), interactions),
   }
 }
 
