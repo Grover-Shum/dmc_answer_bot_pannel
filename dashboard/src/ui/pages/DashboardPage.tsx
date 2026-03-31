@@ -540,6 +540,9 @@ export function DashboardPage() {
             </button>
           ) : null}
         </div>
+        <div className="help">
+          提示：可点击图表联动筛选；点击上方标签可取消对应条件。
+        </div>
       </div>
 
       {filteredRows.length === 0 ? (
@@ -700,8 +703,20 @@ export function DashboardPage() {
                     <td className="td-muted">
                       {(r.questionTime ?? r.answerTime)?.toLocaleString() ?? '-'}
                     </td>
-                    <td>{r.projectName || '-'}</td>
-                    <td>{r.intent || '-'}</td>
+                    <td>
+                      {r.projectName ? (
+                        <span className="tag tag-project">{r.projectName}</span>
+                      ) : (
+                        <span className="td-muted">-</span>
+                      )}
+                    </td>
+                    <td>
+                      {r.intent ? (
+                        <span className="tag tag-intent">{r.intent}</span>
+                      ) : (
+                        <span className="td-muted">-</span>
+                      )}
+                    </td>
                     <td className="td-wide">
                       <div className="clamp-2">{r.question || '-'}</div>
                     </td>

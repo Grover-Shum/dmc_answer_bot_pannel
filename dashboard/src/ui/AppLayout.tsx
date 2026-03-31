@@ -12,12 +12,16 @@ export function AppLayout() {
   const theme = useUiStore((s) => s.theme)
   const toggleTheme = useUiStore((s) => s.toggleTheme)
 
+  const isOnline = fileName != null && (fileName === 'online' || fileName.startsWith('workflow:'))
+  const sourceLabel = isOnline ? '线上' : '本地'
+  const displayFileName = fileName === 'online' ? '线上数据' : fileName
+
   return (
     <div className="app">
       <header className="app-header">
         <div className="app-header-left">
           <div className="app-title">
-            <span className="app-mark" aria-hidden="true" />Agent 问答看板
+            <span className="app-mark" aria-hidden="true" />答疑Agent问答看板
           </div>
           <nav className="app-nav">
             <NavLink to="/" className={({ isActive }) => cls(isActive)}>
@@ -32,7 +36,10 @@ export function AppLayout() {
           {fileName ? (
             <div className="app-meta">
               <div className="meta-line">
-                <span className="meta-strong">{fileName}</span>
+                <span className={isOnline ? 'badge badge-online' : 'badge badge-local'}>
+                  {sourceLabel}
+                </span>
+                <span className="meta-strong">{displayFileName}</span>
                 <span className="meta-muted"> · {rows.length} 条</span>
               </div>
               <div className="meta-line meta-muted">
