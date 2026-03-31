@@ -15,6 +15,8 @@ export type Metrics = {
 export type BucketPoint = { x: string; y: number }
 export type GroupCount = { name: string; value: number }
 
+export type TrendViewType = 'hour' | 'day' | 'week' | 'month'
+
 function percentile(sorted: number[], p: number): number | null {
   if (sorted.length === 0) return null
   const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(p * (sorted.length - 1))))
@@ -93,6 +95,75 @@ export function bucketByHour(rows: NormalizedRow[]): BucketPoint[] {
   return Array.from(counts.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([x, y]) => ({ x, y }))
+}
+
+export function bucketByDay(rows: NormalizedRow[]): BucketPoint[] {
+  const counts = new Map<string, number>()
+  for (const r of rows) {
+    const t = r.questionTime ?? r.answerTime
+    if (!t) continue
+    const key = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([x, y]) => ({ x, y }))
+}
+
+export function bucketByWeek(rows: NormalizedRow[]): BucketPoint[] {
+  const counts = new Map<string, number>()
+  for (const r of rows) {
+    const t = r.questionTime ?? r.answerTime
+    if (!t) continue
+    const weekStart = new Date(t)
+    const day = weekStart.getDay()
+    const diff = day === 0 ? 6 : day - 1
+    weekStart.setDate(weekStart.getDate() - diff)
+    weekStart.setHours(0, 0, 0, 0)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    const key = `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([x, y]) => ({ x, y }))
+}
+
+export function bucketByMonth(rows: NormalizedRow[]): BucketPoint[] {
+  const counts = new Map<string, number>()
+  for (const r of rows) {
+    const t = r.questionTime ?? r.answerTime
+    if (!t) continue
+    const key = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([x, y]) => ({ x, y }))
+}
+
+function getWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+}
+
+export function bucketTrendByView(rows: NormalizedRow[], viewType: TrendViewType): BucketPoint[] {
+  switch (viewType) {
+    case 'hour':
+      return bucketByHour(rows)
+    case 'day':
+      return bucketByDay(rows)
+    case 'week':
+      return bucketByWeek(rows)
+    case 'month':
+      return bucketByMonth(rows)
+    default:
+      return bucketByHour(rows)
+  }
 }
 
 export function groupCount(

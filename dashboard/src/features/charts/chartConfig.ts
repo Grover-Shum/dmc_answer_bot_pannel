@@ -69,13 +69,23 @@ export function createTrendChartOption(
   data: { x: string; y: number }[],
   isDark: boolean,
   color = '#7c5cff',
+  showMovingAverage = true,
 ): unknown {
   const { tooltip, colors } = createBaseChartConfig(isDark)
 
   const chartData = data.length > 0 ? data : [{ x: '', y: 0 }]
 
+  // 计算移动平均线（3点平均）
+  const movingAvgData = data.length >= 3
+    ? data.map((p, i, arr) => {
+        if (i < 1 || i >= arr.length - 1) return null
+        const sum = arr[i - 1].y + p.y + arr[i + 1].y
+        return sum / 3
+      })
+    : []
+
   return {
-    color: [color],
+    color: [color, '#ff9f43'],
     tooltip,
     grid: { left: 42, right: 20, top: 26, bottom: data.length > 1 ? 34 : 20 },
     xAxis: {
@@ -89,8 +99,13 @@ export function createTrendChartOption(
       type: 'value',
       axisLabel: { color: colors.axisLabel },
       splitLine: { lineStyle: { color: colors.splitLine } },
-      minInterval: 1,
-      min: 0,
+    },
+    legend: {
+      show: showMovingAverage && data.length >= 3,
+      data: ['实际', '移动平均'],
+      textStyle: { color: colors.axisLabel },
+      top: 0,
+      right: 20,
     },
     dataZoom: data.length > 2 ? [
       { type: 'inside', xAxisIndex: 0 },
@@ -98,13 +113,26 @@ export function createTrendChartOption(
     ] : undefined,
     series: [
       {
+        name: '实际',
         type: 'line',
         smooth: data.length > 1,
         data: chartData.map((p) => p.y),
         showSymbol: data.length > 0,
         lineStyle: { width: 2 },
         areaStyle: data.length > 0 ? { opacity: 0.18 } : undefined,
+        emphasis: { focus: 'series' },
       },
+      ...(showMovingAverage && movingAvgData.length > 0 ? [
+        {
+          name: '移动平均',
+          type: 'line',
+          smooth: true,
+          data: movingAvgData,
+          showSymbol: false,
+          lineStyle: { width: 2, type: 'dashed' },
+          emphasis: { focus: 'series' },
+        },
+      ] : []),
     ],
   }
 }
@@ -141,6 +169,61 @@ export function createHorizontalBarChartOption(
     },
     series: [
       { type: 'bar', data: data.map((d) => d.value), barMaxWidth },
+    ],
+  }
+}
+
+/**
+ * 创建饼图配置（用于占比分布）
+ */
+export function createPieChartOption(
+  data: { name: string; value: number }[],
+  isDark: boolean,
+): unknown {
+  const colors = getThemeColors(isDark)
+
+  return {
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: colors.tooltipBg,
+      borderColor: colors.tooltipBorder,
+      textStyle: { color: colors.tooltipText },
+      formatter: '{b}: {c} ({d}%)',
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      textStyle: { color: colors.axisLabel },
+      type: data.length > 10 ? 'scroll' : 'plain',
+      pageTextStyle: { color: colors.axisLabel },
+    },
+    color: ['#7c5cff', '#22c55e', '#60a5fa', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'],
+    series: [
+      {
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['60', '50%'],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 8,
+          borderColor: isDark ? '#1f2937' : '#ffffff',
+          borderWidth: 2,
+        },
+        label: {
+          show: false,
+          position: 'center',
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 18,
+            fontWeight: 'bold',
+            color: colors.axisLabel,
+          },
+        },
+        labelLine: { show: false },
+        data: data.map((d) => ({ name: d.name, value: d.value })),
+      },
     ],
   }
 }

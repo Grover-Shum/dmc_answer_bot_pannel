@@ -83,6 +83,3 @@ data_agent/
 
 如需拉取线上数据，请在 `src/features/api/fetchOnline.ts` 中配置 API 端点。
 
-## License
-
-MIT

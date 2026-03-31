@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { bucketByHour, computeMetrics, groupCount } from '../../features/metrics/metrics'
+import ReactECharts from 'echarts-for-react'
+import type { EChartsOption } from 'echarts'
+import { bucketTrendByView, computeMetrics, groupCount } from '../../features/metrics/metrics'
+import type { TrendViewType } from '../../features/metrics/metrics'
 import { fetchOnlineRows } from '../../features/api/fetchOnline'
-import { createHorizontalBarChartOption, createTrendChartOption } from '../../features/charts/chartConfig'
+import { createHorizontalBarChartOption, createTrendChartOption, createPieChartOption } from '../../features/charts/chartConfig'
 import { useDataStore } from '../../store/useDataStore'
 import { useUiStore } from '../../store/useUiStore'
 import {
@@ -16,6 +19,12 @@ import type { NormalizedRow } from '../../types'
 import { ChartCard } from '../components/ChartCard'
 import { KpiCard } from '../components/KpiCard'
 import { Modal } from '../components/Modal'
+
+type ChartClickParams = {
+  componentType?: string
+  seriesType?: string
+  dataIndex?: number
+}
 
 function formatSeconds(v: number | null): string {
   if (v == null) return UI_CONSTANTS.DISPLAY.EMPTY
@@ -43,6 +52,40 @@ function sortByTimeDesc(a: NormalizedRow, b: NormalizedRow): number {
   const ta = (a.questionTime ?? a.answerTime)?.getTime() ?? 0
   const tb = (b.questionTime ?? b.answerTime)?.getTime() ?? 0
   return tb - ta
+}
+
+function setTimeRangeRange(value: 'custom' | 'today' | 'week' | 'month') {
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+
+  let start: Date
+  let end: Date
+
+  switch (value) {
+    case 'today':
+      start = todayStart
+      end = todayEnd
+      break
+    case 'week': {
+      const dayOfWeek = todayStart.getDay()
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+      start = new Date(todayStart)
+      start.setDate(start.getDate() - diff)
+      start.setHours(0, 0, 0, 0)
+      end = new Date(todayEnd)
+      break
+    }
+    case 'month': {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+      break
+    }
+    default:
+      return
+  }
+
+  return { fromTime: toDatetimeLocalValue(start), toTime: toDatetimeLocalValue(end) }
 }
 
 export function DashboardPage() {
@@ -92,8 +135,41 @@ export function DashboardPage() {
   const [fromTime, setFromTime] = useState<string>('')
   const [toTime, setToTime] = useState<string>('')
   const [selectedRow, setSelectedRow] = useState<NormalizedRow | null>(null)
+  const [trendView, setTrendView] = useState<TrendViewType>('hour')
+  const [timeRange, setTimeRange] = useState<'custom' | 'today' | 'week' | 'month'>('custom')
+  const [chartSelection, setChartSelection] = useState<{ type: 'trend' | 'intent' | 'project' | null; value: string | null }>({ type: null, value: null })
 
-  const filteredRows = useMemo(() => {
+  function getTrendBucketKey(d: Date, view: TrendViewType): string {
+    const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+    const getWeekNumber = (date: Date): number => {
+      const dd = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+      const dayNum = dd.getUTCDay() || 7
+      dd.setUTCDate(dd.getUTCDate() + 4 - dayNum)
+      const yearStart = new Date(Date.UTC(dd.getUTCFullYear(), 0, 1))
+      return Math.ceil(((dd.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+    }
+
+    switch (view) {
+      case 'hour':
+        return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:00`
+      case 'day':
+        return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+      case 'week': {
+        const weekStart = new Date(d)
+        const day = weekStart.getDay()
+        const diff = day === 0 ? 6 : day - 1
+        weekStart.setDate(weekStart.getDate() - diff)
+        weekStart.setHours(0, 0, 0, 0)
+        return `${weekStart.getFullYear()}-W${getWeekNumber(weekStart)}`
+      }
+      case 'month':
+        return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
+      default:
+        return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:00`
+    }
+  }
+
+  const baseRows = useMemo(() => {
     const kw = keywordDeferred.trim()
     const from = fromDatetimeLocalValue(fromTime || defaultFromTime)
     const to = fromDatetimeLocalValue(toTime || defaultToTime)
@@ -111,8 +187,23 @@ export function DashboardPage() {
     })
   }, [rows, project, intent, keywordDeferred, fromTime, toTime, defaultFromTime, defaultToTime])
 
+  const trend = useMemo(() => bucketTrendByView(baseRows, trendView), [trendView, baseRows])
+
+  const filteredRows = useMemo(() => {
+    if (!chartSelection.type || !chartSelection.value) return baseRows
+    return baseRows.filter((r) => {
+      if (chartSelection.type === 'intent') return r.intent === chartSelection.value
+      if (chartSelection.type === 'project') return r.projectName === chartSelection.value
+      if (chartSelection.type === 'trend') {
+        const t = r.questionTime ?? r.answerTime
+        if (!t) return false
+        return getTrendBucketKey(t, trendView) === chartSelection.value
+      }
+      return true
+    })
+  }, [baseRows, chartSelection.type, chartSelection.value, trendView])
+
   const metrics = useMemo(() => computeMetrics(filteredRows), [filteredRows])
-  const trend = useMemo(() => bucketByHour(filteredRows), [filteredRows])
   const intentsTop = useMemo(
     () =>
       groupCount(
@@ -164,15 +255,23 @@ export function DashboardPage() {
   const isDarkTheme = theme === THEME_CONSTANTS.DARK
 
   const trendOption = useMemo(() => {
-    return createTrendChartOption(trend, isDarkTheme)
+    return createTrendChartOption(trend, isDarkTheme, '#7c5cff', true) as EChartsOption
   }, [trend, isDarkTheme])
 
   const intentsOption = useMemo(() => {
-    return createHorizontalBarChartOption(intentsTop, isDarkTheme, '#22c55e')
+    return createHorizontalBarChartOption(intentsTop, isDarkTheme, '#22c55e') as EChartsOption
   }, [intentsTop, isDarkTheme])
 
   const projectsOption = useMemo(() => {
-    return createHorizontalBarChartOption(projectsTop, isDarkTheme, '#60a5fa')
+    return createHorizontalBarChartOption(projectsTop, isDarkTheme, '#60a5fa') as EChartsOption
+  }, [projectsTop, isDarkTheme])
+
+  const intentsPieOption = useMemo(() => {
+    return createPieChartOption(intentsTop, isDarkTheme) as EChartsOption
+  }, [intentsTop, isDarkTheme])
+
+  const projectsPieOption = useMemo(() => {
+    return createPieChartOption(projectsTop, isDarkTheme) as EChartsOption
   }, [projectsTop, isDarkTheme])
 
   const resultText = useMemo(() => {
@@ -196,6 +295,57 @@ export function DashboardPage() {
     setKeyword('')
     setFromTime('')
     setToTime('')
+    setTimeRange('custom')
+    setChartSelection({ type: null, value: null })
+  }
+
+  function handleTimeRangeChange(range: 'custom' | 'today' | 'week' | 'month') {
+    setTimeRange(range)
+    if (range !== 'custom') {
+      const timeValues = setTimeRangeRange(range)
+      if (timeValues) {
+        setFromTime(timeValues.fromTime)
+        setToTime(timeValues.toTime)
+      }
+    }
+  }
+
+  function handleTrendChartClick(params: unknown) {
+    const p = params as ChartClickParams
+    if (p.componentType === 'series' && p.seriesType === 'line' && typeof p.dataIndex === 'number') {
+      const timeLabel = trend[p.dataIndex]?.x
+      if (timeLabel) {
+        setChartSelection({ type: 'trend', value: timeLabel })
+      } else {
+        setChartSelection({ type: null, value: null })
+      }
+    }
+  }
+
+  function handleBarChartClick(params: unknown, type: 'intent' | 'project') {
+    const p = params as ChartClickParams
+    if (p.componentType === 'series' && typeof p.dataIndex === 'number') {
+      const data = type === 'intent' ? intentsTop : projectsTop
+      const label = data[p.dataIndex]?.name
+      if (label) {
+        setChartSelection({ type, value: label })
+      } else {
+        setChartSelection({ type: null, value: null })
+      }
+    }
+  }
+
+  function handlePieChartClick(params: unknown, type: 'intent' | 'project') {
+    const p = params as ChartClickParams
+    if (p.componentType === 'series' && typeof p.dataIndex === 'number') {
+      const data = type === 'intent' ? intentsTop : projectsTop
+      const label = data[p.dataIndex]?.name
+      if (label) {
+        setChartSelection({ type, value: label })
+      } else {
+        setChartSelection({ type: null, value: null })
+      }
+    }
   }
 
   function exportCsv() {
@@ -289,8 +439,28 @@ export function DashboardPage() {
         </div>
         <div className="filters">
           <div className="field">
+            <div className="label">时间范围</div>
+            <select
+              value={timeRange}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === 'custom' || v === 'today' || v === 'week' || v === 'month') {
+                  handleTimeRangeChange(v)
+                }
+              }}
+            >
+              <option value="custom">自定义</option>
+              <option value="today">今日</option>
+              <option value="week">本周</option>
+              <option value="month">本月</option>
+            </select>
+          </div>
+          <div className="field">
             <div className="label">项目</div>
-            <select value={project} onChange={(e) => setProject(e.target.value)}>
+            <select
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+            >
               <option value="全部">全部</option>
               {allProjects.map((p) => (
                 <option key={p} value={p}>
@@ -358,6 +528,21 @@ export function DashboardPage() {
               关键词：{keyword.trim()} <span className="chip-x">×</span>
             </button>
           ) : null}
+          {chartSelection.value && chartSelection.type === 'trend' ? (
+            <button className="chip" onClick={() => setChartSelection({ type: null, value: null })}>
+              时间：{chartSelection.value} <span className="chip-x">×</span>
+            </button>
+          ) : null}
+          {chartSelection.value && chartSelection.type === 'intent' ? (
+            <button className="chip" onClick={() => setChartSelection({ type: null, value: null })}>
+              意图：{chartSelection.value} <span className="chip-x">×</span>
+            </button>
+          ) : null}
+          {chartSelection.value && chartSelection.type === 'project' ? (
+            <button className="chip" onClick={() => setChartSelection({ type: null, value: null })}>
+              项目：{chartSelection.value} <span className="chip-x">×</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -389,9 +574,94 @@ export function DashboardPage() {
         <KpiCard title="风险意图" value={String(metrics.riskCount)} sub="投诉/退款/退换等" />
       </div>
 
+      <div className="card">
+        <div className="card-head">
+          <div className="card-title">问答趋势</div>
+          <div className="card-actions">
+            {(['hour', 'day', 'week', 'month'] as const).map((view) => (
+              <button
+                key={view}
+                className={`btn btn-secondary ${trendView === view ? 'active' : ''}`}
+                onClick={() => setTrendView(view)}
+              >
+                {view === 'hour' ? '按小时' : view === 'day' ? '按天' : view === 'week' ? '按周' : '按月'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="chart">
+          <ReactECharts
+            option={trendOption}
+            notMerge={true}
+            lazyUpdate={true}
+            style={{ height: 400, width: '100%' }}
+            onEvents={{
+              click: handleTrendChartClick,
+            }}
+          />
+        </div>
+      </div>
+
       <div className="grid-2">
-        <ChartCard title="问答趋势（按小时）" option={trendOption} height={320} />
-        <ChartCard title="Top 意图" option={intentsOption} height={320} />
+        <div className="card">
+          <div className="card-title">Top 意图</div>
+          <div className="chart">
+            <ReactECharts
+              option={intentsOption}
+              notMerge={true}
+              lazyUpdate={true}
+              style={{ height: 320, width: '100%' }}
+              onEvents={{
+                click: (params: unknown) => handleBarChartClick(params, 'intent'),
+              }}
+            />
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-title">Top 项目</div>
+          <div className="chart">
+            <ReactECharts
+              option={projectsOption}
+              notMerge={true}
+              lazyUpdate={true}
+              style={{ height: 320, width: '100%' }}
+              onEvents={{
+                click: (params: unknown) => handleBarChartClick(params, 'project'),
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="card">
+          <div className="card-title">意图分布</div>
+          <div className="chart">
+            <ReactECharts
+              option={intentsPieOption}
+              notMerge={true}
+              lazyUpdate={true}
+              style={{ height: 400, width: '100%' }}
+              onEvents={{
+                click: (params: unknown) => handlePieChartClick(params, 'intent'),
+              }}
+            />
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-title">项目分布</div>
+          <div className="chart">
+            <ReactECharts
+              option={projectsPieOption}
+              notMerge={true}
+              lazyUpdate={true}
+              style={{ height: 400, width: '100%' }}
+              onEvents={{
+                click: (params: unknown) => handlePieChartClick(params, 'project'),
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid-2">
