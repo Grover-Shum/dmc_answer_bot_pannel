@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { NormalizedRow, RawRow } from '../../types'
+import { INTENT_LABELS } from '../../constants'
 
 function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/[\s_-]/g, '')
@@ -107,7 +108,8 @@ export async function parseXlsxFile(file: File): Promise<{
     const answerTime = toDateSafe(
       pickValue(r, ['answer_time', 'answerTime', '回答时间', '回复时间']),
     )
-    const intent = toStringSafe(pickValue(r, ['intent', '意图', '标签'])).trim()
+    const intentRaw = toStringSafe(pickValue(r, ['intent', '意图', '标签'])).trim()
+    const intent = INTENT_LABELS[intentRaw as keyof typeof INTENT_LABELS] ?? intentRaw
     const projectName = toStringSafe(
       pickValue(r, ['project_name', 'projectName', '项目', '项目名']),
     ).trim()

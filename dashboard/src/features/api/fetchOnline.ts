@@ -1,4 +1,5 @@
 import type { NormalizedRow, RawRow } from '../../types'
+import { INTENT_LABELS } from '../../constants'
 
 type WorkflowRunResponse = {
   code: number
@@ -93,7 +94,8 @@ export async function fetchOnlineRows(): Promise<{
     const answer = toStringSafe(r.answer).trim()
     const questionTime = parseApiTime(r.question_time)
     const answerTime = parseApiTime(r.answer_time)
-    const intent = toStringSafe(r.intent).trim()
+    const intentRaw = toStringSafe(r.intent).trim()
+    const intent = INTENT_LABELS[intentRaw as keyof typeof INTENT_LABELS] ?? intentRaw
     const projectName = toStringSafe(r.project_name).trim()
     return {
       sessionId,

@@ -163,3 +163,12 @@ export const API_CONSTANTS = {
    */
   EXPORT_KEYWORD: 'export',
 } as const
+
+export const INTENT_LABELS = {
+  '1': '规则匹配',
+  '2': '操作指导',
+  '3': '案例归因',
+  '4': '代码问题',
+  '5': '主动反馈',
+  '6': '闲聊',
+} as const
