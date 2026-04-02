@@ -92,7 +92,12 @@ export function UploadPage() {
           </button>
         </div>
 
-        {busy ? <div className="notice">正在解析…</div> : null}
+        {busy ? (
+          <div className="notice notice-loading">
+            <div className="spinner"></div>
+            <span>正在解析数据，请稍候…</span>
+          </div>
+        ) : null}
         {error ? <div className="notice notice-error">{error}</div> : null}
 
         <div className="divider" />

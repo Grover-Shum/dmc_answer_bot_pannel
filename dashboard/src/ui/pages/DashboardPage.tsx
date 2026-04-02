@@ -565,11 +565,13 @@ export function DashboardPage() {
           title="转人工率"
           value={formatPercent(metrics.handoffRate)}
           sub={`${metrics.handoffCount} 次`}
+          variant={metrics.handoffRate > 0.15 ? 'danger' : metrics.handoffRate > 0.05 ? 'warning' : 'default'}
         />
         <KpiCard
           title="风险意图占比"
           value={formatPercent(metrics.riskRate)}
           sub={`${metrics.riskCount} 条`}
+          variant={metrics.riskRate > 0.10 ? 'danger' : metrics.riskRate > 0.02 ? 'warning' : 'default'}
         />
         <KpiCard
           title="意图覆盖率"
@@ -683,50 +685,57 @@ export function DashboardPage() {
         <div className="card">
           <div className="card-title">最新问答（Top 50）</div>
           <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>时间</th>
-                  <th>项目</th>
-                  <th>意图</th>
-                  <th>问题</th>
-                  <th>回答</th>
-                </tr>
-              </thead>
-              <tbody>
-                {latestRows.map((r, idx) => (
-                  <tr
-                    key={`${r.sessionId}_${idx}`}
-                    className="table-row"
-                    onClick={() => setSelectedRow(r)}
-                  >
-                    <td className="td-muted">
-                      {(r.questionTime ?? r.answerTime)?.toLocaleString() ?? '-'}
-                    </td>
-                    <td>
-                      {r.projectName ? (
-                        <span className="tag tag-project">{r.projectName}</span>
-                      ) : (
-                        <span className="td-muted">-</span>
-                      )}
-                    </td>
-                    <td>
-                      {r.intent ? (
-                        <span className="tag tag-intent">{r.intent}</span>
-                      ) : (
-                        <span className="td-muted">-</span>
-                      )}
-                    </td>
-                    <td className="td-wide">
-                      <div className="clamp-2">{r.question || '-'}</div>
-                    </td>
-                    <td className="td-wide">
-                      <div className="clamp-2">{r.answer || '-'}</div>
-                    </td>
+            {latestRows.length > 0 ? (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>项目</th>
+                    <th>意图</th>
+                    <th>问题</th>
+                    <th>回答</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {latestRows.map((r, idx) => (
+                    <tr
+                      key={`${r.sessionId}_${idx}`}
+                      className="table-row"
+                      onClick={() => setSelectedRow(r)}
+                    >
+                      <td className="td-muted">
+                        {(r.questionTime ?? r.answerTime)?.toLocaleString() ?? '-'}
+                      </td>
+                      <td>
+                        {r.projectName ? (
+                          <span className="tag tag-project">{r.projectName}</span>
+                        ) : (
+                          <span className="td-muted">-</span>
+                        )}
+                      </td>
+                      <td>
+                        {r.intent ? (
+                          <span className="tag tag-intent">{r.intent}</span>
+                        ) : (
+                          <span className="td-muted">-</span>
+                        )}
+                      </td>
+                      <td className="td-wide">
+                        <div className="clamp-2">{r.question || '-'}</div>
+                      </td>
+                      <td className="td-wide">
+                        <div className="clamp-2">{r.answer || '-'}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon">📭</div>
+                <div>暂无问答数据</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
