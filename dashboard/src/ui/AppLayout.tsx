@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../store/useAuthStore'
 import { useDataStore } from '../store/useDataStore'
 import { useUiStore } from '../store/useUiStore'
 
@@ -9,6 +10,8 @@ function cls(active: boolean): string {
 export function AppLayout() {
   const navigate = useNavigate()
   const { fileName, rows, loadedAt, clear } = useDataStore()
+  const logout = useAuthStore((s) => s.logout)
+  const user = useAuthStore((s) => s.user)
   const theme = useUiStore((s) => s.theme)
   const toggleTheme = useUiStore((s) => s.toggleTheme)
 
@@ -30,9 +33,15 @@ export function AppLayout() {
             <NavLink to="/dashboard" className={({ isActive }) => cls(isActive)}>
               看板
             </NavLink>
+            {user?.role === 'admin' ? (
+              <NavLink to="/admin" className={({ isActive }) => cls(isActive)}>
+                管理
+              </NavLink>
+            ) : null}
           </nav>
         </div>
         <div className="app-header-right">
+          {user ? <div className="meta-muted">{user.username}</div> : null}
           {fileName ? (
             <div className="app-meta">
               <div className="meta-line">
@@ -65,6 +74,16 @@ export function AppLayout() {
             disabled={!fileName}
           >
             清空
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              clear()
+              logout()
+              navigate('/login', { replace: true })
+            }}
+          >
+            退出
           </button>
         </div>
       </header>
