@@ -6,12 +6,16 @@ import { UploadPage } from './ui/pages/UploadPage'
 
 export const router = createBrowserRouter([
   {
+    path: '/feedback',
+    element: <FeedbackPage />,
+  },
+  { path: '/feedback/up', element: <FeedbackPage /> },
+  { path: '/feedback/down', element: <FeedbackPage /> },
+  {
     element: <AppLayout />,
     children: [
       { path: '/', element: <UploadPage /> },
       { path: '/dashboard', element: <DashboardPage /> },
-      { path: '/feedback/up', element: <FeedbackPage type="up" /> },
-      { path: '/feedback/down', element: <FeedbackPage type="down" /> },
     ],
   },
 ])

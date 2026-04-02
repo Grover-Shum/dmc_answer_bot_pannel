@@ -1,114 +1,46 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
-export function FeedbackPage({ type }: { type: 'up' | 'down' }) {
-  const [note, setNote] = useState('')
-  const [copyHint, setCopyHint] = useState<string | null>(null)
+export function FeedbackPage() {
   const [secondsLeft, setSecondsLeft] = useState(3)
 
-  const title = type === 'up' ? '感谢反馈' : '已收到'
-  const subtitle = type === 'up' ? '很高兴对你有帮助。' : '我们会持续改进。你也可以补充一句原因。'
-
-  const tag = type === 'up' ? '👍 有帮助' : '👎 待改进'
-  const payload = useMemo(() => {
-    const t = new Date()
-    const ts = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(
-      t.getDate(),
-    ).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(
-      2,
-      '0',
-    )}`
-    const lines = [
-      `反馈类型: ${type === 'up' ? '有帮助' : '待改进'}`,
-      `时间: ${ts}`,
-      note.trim() ? `补充: ${note.trim()}` : null,
-    ].filter((v): v is string => v != null)
-    return lines.join('\n')
-  }, [note, type])
-
-  const autoCloseEnabled = type === 'up' || note.trim() === ''
-
   useEffect(() => {
-    if (!autoCloseEnabled) return
-    if (secondsLeft <= 0) return
-
-    const t = window.setTimeout(() => {
+    const t = window.setInterval(() => {
       setSecondsLeft((s) => Math.max(0, s - 1))
     }, 1000)
-    return () => window.clearTimeout(t)
-  }, [autoCloseEnabled, secondsLeft])
+    return () => window.clearInterval(t)
+  }, [])
 
   useEffect(() => {
-    if (!autoCloseEnabled) return
     if (secondsLeft !== 0) return
-
     window.close()
-  }, [autoCloseEnabled, secondsLeft])
+  }, [secondsLeft])
 
   return (
-    <div className="page">
-      <div className="card">
-        <div className="card-title">
-          {title} <span className="tag tag-intent">{tag}</span>
-        </div>
-        <div className="card-subtitle">{subtitle}</div>
-        {type === 'down' ? (
-          <div className="field">
-            <div className="label">补充说明（可选）</div>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={4}
-              placeholder="比如：回答不准确/没覆盖到关键点/需要给出具体步骤或链接…"
-            />
-            <div className="help">当前页面无法直接关联到具体问答，可先把补充说明复制给维护同学。</div>
+    <div className="feedback-page">
+      <div className="feedback-card">
+        <div className="feedback-hero" aria-hidden="true">
+          <div className="feedback-orb feedback-orb-a" />
+          <div className="feedback-orb feedback-orb-b" />
+          <div className="feedback-check">
+            <div className="feedback-check-inner">✓</div>
           </div>
-        ) : (
-          <div className="hint-body">你可以继续提问，或把本次正向反馈同步给团队。</div>
-        )}
-        {copyHint ? <div className="help">{copyHint}</div> : null}
-        {autoCloseEnabled ? (
-          <div className="help">{secondsLeft > 0 ? `${secondsLeft}s 后自动关闭…` : '正在尝试自动关闭…'}</div>
-        ) : (
-          <div className="help">已检测到补充说明输入，自动关闭已暂停。</div>
-        )}
-        {autoCloseEnabled && secondsLeft === 0 ? (
-          <div className="help">如未自动关闭，请手动关闭此页面。</div>
+        </div>
+        <div className="feedback-title">感谢你的反馈！</div>
+        <div className="feedback-subtitle">我们已收到你的反馈，会持续优化体验。</div>
+        <div className="feedback-meta">
+          {secondsLeft > 0 ? `${secondsLeft}s 后自动关闭…` : '正在尝试自动关闭…'}
+        </div>
+        {secondsLeft === 0 ? (
+          <div className="feedback-meta">如未自动关闭，请手动关闭此页面。</div>
         ) : null}
-        <div className="divider" />
-        <div className="card-actions">
+        <div className="feedback-actions">
           <button
             className="btn"
             onClick={() => {
               window.close()
             }}
           >
-            关闭
-          </button>
-          <button
-            className="btn"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(payload)
-                setCopyHint('已复制反馈内容，可粘贴到群里或工单中。')
-              } catch {
-                setCopyHint('复制失败，请手动选中内容复制。')
-              }
-            }}
-          >
-            复制反馈
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(payload)
-                window.close()
-              } catch {
-                setCopyHint('复制失败，请手动选中内容复制。')
-              }
-            }}
-          >
-            复制并关闭
+            立即关闭
           </button>
         </div>
       </div>
