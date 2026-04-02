@@ -3,6 +3,18 @@ import { useEffect, useState } from 'react'
 export function FeedbackPage() {
   const [secondsLeft, setSecondsLeft] = useState(3)
 
+  function attemptClose() {
+    try {
+      window.close()
+      window.open('', '_self')
+      window.close()
+    } finally {
+      window.setTimeout(() => {
+        window.location.replace('about:blank')
+      }, 120)
+    }
+  }
+
   useEffect(() => {
     const t = window.setInterval(() => {
       setSecondsLeft((s) => Math.max(0, s - 1))
@@ -12,7 +24,7 @@ export function FeedbackPage() {
 
   useEffect(() => {
     if (secondsLeft !== 0) return
-    window.close()
+    attemptClose()
   }, [secondsLeft])
 
   return (
@@ -37,7 +49,7 @@ export function FeedbackPage() {
           <button
             className="btn"
             onClick={() => {
-              window.close()
+              attemptClose()
             }}
           >
             立即关闭
