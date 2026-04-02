@@ -417,7 +417,8 @@ body {
 }
 
 select,
-input {
+input,
+textarea {
   width: 100%;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.06);
@@ -433,13 +434,15 @@ input {
 }
 
 select:focus,
-input:focus {
+input:focus,
+textarea:focus {
   border-color: rgba(124, 92, 255, 0.7);
   box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.18);
 }
 
 :root[data-theme='light'] select,
-:root[data-theme='light'] input {
+:root[data-theme='light'] input,
+:root[data-theme='light'] textarea {
   background: rgba(15, 23, 42, 0.03);
   border-color: rgba(15, 23, 42, 0.12);
 }
