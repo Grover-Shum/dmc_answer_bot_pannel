@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 
 export function FeedbackPage({ type }: { type: 'up' | 'down' }) {
-  const navigate = useNavigate()
   const [note, setNote] = useState('')
   const [copyHint, setCopyHint] = useState<string | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(3)
 
   const title = type === 'up' ? '感谢反馈' : '已收到'
   const subtitle = type === 'up' ? '很高兴对你有帮助。' : '我们会持续改进。你也可以补充一句原因。'
@@ -25,6 +24,25 @@ export function FeedbackPage({ type }: { type: 'up' | 'down' }) {
     ].filter((v): v is string => v != null)
     return lines.join('\n')
   }, [note, type])
+
+  const autoCloseEnabled = type === 'up' || note.trim() === ''
+
+  useEffect(() => {
+    if (!autoCloseEnabled) return
+    if (secondsLeft <= 0) return
+
+    const t = window.setTimeout(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1))
+    }, 1000)
+    return () => window.clearTimeout(t)
+  }, [autoCloseEnabled, secondsLeft])
+
+  useEffect(() => {
+    if (!autoCloseEnabled) return
+    if (secondsLeft !== 0) return
+
+    window.close()
+  }, [autoCloseEnabled, secondsLeft])
 
   return (
     <div className="page">
@@ -48,6 +66,14 @@ export function FeedbackPage({ type }: { type: 'up' | 'down' }) {
           <div className="hint-body">你可以继续提问，或把本次正向反馈同步给团队。</div>
         )}
         {copyHint ? <div className="help">{copyHint}</div> : null}
+        {autoCloseEnabled ? (
+          <div className="help">{secondsLeft > 0 ? `${secondsLeft}s 后自动关闭…` : '正在尝试自动关闭…'}</div>
+        ) : (
+          <div className="help">已检测到补充说明输入，自动关闭已暂停。</div>
+        )}
+        {autoCloseEnabled && secondsLeft === 0 ? (
+          <div className="help">如未自动关闭，请手动关闭此页面。</div>
+        ) : null}
         <div className="divider" />
         <div className="card-actions">
           <button
@@ -73,31 +99,16 @@ export function FeedbackPage({ type }: { type: 'up' | 'down' }) {
           </button>
           <button
             className="btn btn-secondary"
-            onClick={() => {
-              navigate('/dashboard')
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(payload)
+                window.close()
+              } catch {
+                setCopyHint('复制失败，请手动选中内容复制。')
+              }
             }}
           >
-            返回看板
-          </button>
-        </div>
-        <div className="divider" />
-        <div className="hint-title">快速操作</div>
-        <div className="chips">
-          <button
-            className="chip"
-            onClick={() => {
-              navigate('/')
-            }}
-          >
-            回到上传
-          </button>
-          <button
-            className="chip"
-            onClick={() => {
-              navigate('/dashboard')
-            }}
-          >
-            打开看板
+            复制并关闭
           </button>
         </div>
       </div>
