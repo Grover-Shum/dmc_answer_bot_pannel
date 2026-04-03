@@ -50,33 +50,37 @@ function sortByTimeDesc(a: NormalizedRow, b: NormalizedRow): number {
   return tb - ta
 }
 
-function setTimeRangeRange(value: 'custom' | 'today' | 'week' | 'month') {
+function setTimeRangeRange(value: 'custom' | 'last3' | 'last7' | 'last15' | 'last30') {
   const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
   let start: Date
   let end: Date
 
   switch (value) {
-    case 'today':
-      start = todayStart
-      end = todayEnd
-      break
-    case 'week': {
-      const dayOfWeek = todayStart.getDay()
-      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-      start = new Date(todayStart)
-      start.setDate(start.getDate() - diff)
+    case 'last3':
+      start = new Date(now)
+      start.setDate(start.getDate() - 2)
       start.setHours(0, 0, 0, 0)
-      end = new Date(todayEnd)
+      end = new Date(now)
       break
-    }
-    case 'month': {
-      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+    case 'last7':
+      start = new Date(now)
+      start.setDate(start.getDate() - 6)
+      start.setHours(0, 0, 0, 0)
+      end = new Date(now)
       break
-    }
+    case 'last15':
+      start = new Date(now)
+      start.setDate(start.getDate() - 14)
+      start.setHours(0, 0, 0, 0)
+      end = new Date(now)
+      break
+    case 'last30':
+      start = new Date(now)
+      start.setDate(start.getDate() - 29)
+      start.setHours(0, 0, 0, 0)
+      end = new Date(now)
+      break
     default:
       return
   }
@@ -132,7 +136,7 @@ export function DashboardPage() {
   const [toTime, setToTime] = useState<string>('')
   const [selectedRow, setSelectedRow] = useState<NormalizedRow | null>(null)
   const [trendView, setTrendView] = useState<TrendViewType>('hour')
-  const [timeRange, setTimeRange] = useState<'custom' | 'today' | 'week' | 'month'>('custom')
+  const [timeRange, setTimeRange] = useState<'custom' | 'last3' | 'last7' | 'last15' | 'last30'>('custom')
   const [chartSelection, setChartSelection] = useState<{ type: 'trend' | 'intent' | 'project' | null; value: string | null }>({ type: null, value: null })
 
   function getTrendBucketKey(d: Date, view: TrendViewType): string {
@@ -295,7 +299,7 @@ export function DashboardPage() {
     setChartSelection({ type: null, value: null })
   }
 
-  function handleTimeRangeChange(range: 'custom' | 'today' | 'week' | 'month') {
+  function handleTimeRangeChange(range: 'custom' | 'last3' | 'last7' | 'last15' | 'last30') {
     setTimeRange(range)
     if (range !== 'custom') {
       const timeValues = setTimeRangeRange(range)
@@ -440,15 +444,16 @@ export function DashboardPage() {
               value={timeRange}
               onChange={(e) => {
                 const v = e.target.value
-                if (v === 'custom' || v === 'today' || v === 'week' || v === 'month') {
+                if (v === 'custom' || v === 'last3' || v === 'last7' || v === 'last15' || v === 'last30') {
                   handleTimeRangeChange(v)
                 }
               }}
             >
               <option value="custom">自定义</option>
-              <option value="today">今日</option>
-              <option value="week">本周</option>
-              <option value="month">本月</option>
+              <option value="last3">最近 3 天</option>
+              <option value="last7">最近 7 天</option>
+              <option value="last15">最近 15 天</option>
+              <option value="last30">最近 1 个月</option>
             </select>
           </div>
           <div className="field">
