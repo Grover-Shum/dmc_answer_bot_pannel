@@ -128,15 +128,17 @@ export function DashboardPage() {
     return timeBounds.max ? toDatetimeLocalValue(timeBounds.max) : ''
   }, [timeBounds.max])
 
+  const defaultPreset = useMemo(() => setTimeRangeRange('last7'), [])
+
   const [project, setProject] = useState<string>(UI_CONSTANTS.DISPLAY.ALL)
   const [intent, setIntent] = useState<string>(UI_CONSTANTS.DISPLAY.ALL)
   const [keyword, setKeyword] = useState<string>('')
   const keywordDeferred = useDeferredValue(keyword)
-  const [fromTime, setFromTime] = useState<string>('')
-  const [toTime, setToTime] = useState<string>('')
+  const [fromTime, setFromTime] = useState<string>(() => defaultPreset?.fromTime ?? '')
+  const [toTime, setToTime] = useState<string>(() => defaultPreset?.toTime ?? '')
   const [selectedRow, setSelectedRow] = useState<NormalizedRow | null>(null)
   const [trendView, setTrendView] = useState<TrendViewType>('hour')
-  const [timeRange, setTimeRange] = useState<'custom' | 'last3' | 'last7' | 'last15' | 'last30'>('custom')
+  const [timeRange, setTimeRange] = useState<'custom' | 'last3' | 'last7' | 'last15' | 'last30'>('last7')
   const [chartSelection, setChartSelection] = useState<{ type: 'trend' | 'intent' | 'project' | null; value: string | null }>({ type: null, value: null })
 
   function getTrendBucketKey(d: Date, view: TrendViewType): string {
@@ -293,9 +295,10 @@ export function DashboardPage() {
     setProject(UI_CONSTANTS.DISPLAY.ALL)
     setIntent(UI_CONSTANTS.DISPLAY.ALL)
     setKeyword('')
-    setFromTime('')
-    setToTime('')
-    setTimeRange('custom')
+    const preset = setTimeRangeRange('last7')
+    setFromTime(preset?.fromTime ?? '')
+    setToTime(preset?.toTime ?? '')
+    setTimeRange('last7')
     setChartSelection({ type: null, value: null })
   }
 
