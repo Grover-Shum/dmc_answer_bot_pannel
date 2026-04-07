@@ -1,7 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useFeedbackStore } from '../../store/useFeedbackStore'
 
 export function FeedbackPage() {
+  const location = useLocation()
+  const inc = useFeedbackStore((s) => s.inc)
   const [secondsLeft, setSecondsLeft] = useState(3)
+
+  const feedbackType = useMemo(() => {
+    if (location.pathname.endsWith('/down')) return 'down'
+    if (location.pathname.endsWith('/up')) return 'up'
+    return null
+  }, [location.pathname])
 
   function attemptClose() {
     try {
@@ -14,6 +24,11 @@ export function FeedbackPage() {
       }, 120)
     }
   }
+
+  useEffect(() => {
+    if (!feedbackType) return
+    inc(feedbackType)
+  }, [feedbackType, inc])
 
   useEffect(() => {
     const t = window.setInterval(() => {

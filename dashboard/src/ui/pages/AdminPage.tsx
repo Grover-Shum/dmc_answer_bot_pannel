@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
+import { useFeedbackStore } from '../../store/useFeedbackStore'
 import type { Role } from '../../store/useAuthStore'
 
 export function AdminPage() {
@@ -14,6 +15,9 @@ export function AdminPage() {
   const [role, setRole] = useState<Role>('user')
   const [notice, setNotice] = useState<string | null>(null)
 
+  const counts = useFeedbackStore((s) => s.counts)
+  const resetCounts = useFeedbackStore((s) => s.reset)
+
   const sortedUsers = useMemo(() => {
     return users
       .slice()
@@ -26,6 +30,26 @@ export function AdminPage() {
         <div className="card-title">权限管理</div>
         <div className="card-subtitle">账号数据存储在浏览器本地（localStorage），仅用于降低误访问风险。</div>
         {notice ? <div className="notice">{notice}</div> : null}
+      </div>
+
+      <div className="card">
+        <div className="card-title">反馈统计（本机）</div>
+        <div className="card-subtitle">点赞/点踩数据仅记录在当前浏览器本地，不会同步到其他设备。</div>
+        <div className="card-actions">
+          <div className="meta-muted">👍 {counts.up}</div>
+          <div className="meta-muted">👎 {counts.down}</div>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              const ok = window.confirm('确定清空本机的点赞/点踩统计吗？')
+              if (!ok) return
+              resetCounts()
+              setNotice('已清空反馈统计')
+            }}
+          >
+            清空统计
+          </button>
+        </div>
       </div>
 
       <div className="card">
