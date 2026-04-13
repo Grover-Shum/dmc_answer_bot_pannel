@@ -73,7 +73,7 @@ export const UI_CONSTANTS = {
    * 表格配置
    */
   TABLE: {
-    LATEST_ROWS_LIMIT: 50, // 最新记录显示限制
+    LATEST_ROWS_LIMIT: 5, // 最新记录显示限制
   } as const,
 
   /**

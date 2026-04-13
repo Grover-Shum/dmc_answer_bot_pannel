@@ -714,7 +714,7 @@ A: ${row.answer || '-'}`
           <div className="card-head">
             <div>
               <div className="card-title">最近问答</div>
-              <div className="card-subtitle">按时间倒序展示最近 50 条，可直接展开、复制或查看详情。</div>
+              <div className="card-subtitle">按时间倒序展示最近 5 条，可直接展开、复制或查看详情。</div>
             </div>
           </div>
           <div className="qa-feed">
@@ -803,6 +803,7 @@ A: ${row.answer || '-'}`
         open={selectedRow != null}
         title="问答详情"
         onClose={() => setSelectedRow(null)}
+        variant="drawer"
         footer={
           selectedRow ? (
             <div className="modal-footer-actions">

@@ -7,9 +7,11 @@ export function Modal(props: {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  variant?: 'center' | 'drawer'
 }) {
   const open = props.open
   const onClose = props.onClose
+  const variant = props.variant ?? 'center'
 
   useEffect(() => {
     if (!open) return
@@ -34,7 +36,7 @@ export function Modal(props: {
   return (
     <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
       <div
-        className="modal"
+        className={variant === 'drawer' ? 'modal modal-drawer' : 'modal'}
         role="dialog"
         aria-modal="true"
         aria-label={props.title}
