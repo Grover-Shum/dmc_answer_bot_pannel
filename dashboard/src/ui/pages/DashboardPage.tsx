@@ -137,6 +137,7 @@ export function DashboardPage() {
   const [fromTime, setFromTime] = useState<string>(() => defaultPreset?.fromTime ?? '')
   const [toTime, setToTime] = useState<string>(() => defaultPreset?.toTime ?? '')
   const [selectedRow, setSelectedRow] = useState<NormalizedRow | null>(null)
+  const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null)
   const [trendView, setTrendView] = useState<TrendViewType>('hour')
   const [timeRange, setTimeRange] = useState<'custom' | 'last3' | 'last7' | 'last15' | 'last30'>('last7')
   const [chartSelection, setChartSelection] = useState<{ type: 'trend' | 'intent' | 'project' | null; value: string | null }>({ type: null, value: null })
@@ -371,6 +372,25 @@ export function DashboardPage() {
     a.download = `agent_dashboard_${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}.csv`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function copyRowContent(row: NormalizedRow, mode: 'question' | 'answer' | 'all') {
+    const text =
+      mode === 'question'
+        ? row.question || ''
+        : mode === 'answer'
+          ? row.answer || ''
+          : `session_id: ${row.sessionId}
+project: ${row.projectName || '-'}
+intent: ${row.intent || '-'}
+time: ${(row.questionTime ?? row.answerTime)?.toLocaleString() ?? '-'}
+
+Q: ${row.question || '-'}
+
+A: ${row.answer || '-'}`
+
+    if (!text) return
+    await navigator.clipboard.writeText(text)
   }
 
   if (rows.length === 0) {
@@ -691,53 +711,84 @@ export function DashboardPage() {
       <div className="grid-2">
         <ChartCard title="Top 项目" option={projectsOption} height={320} />
         <div className="card">
-          <div className="card-title">最新问答（Top 50）</div>
-          <div className="table-wrap">
+          <div className="card-head">
+            <div>
+              <div className="card-title">最近问答</div>
+              <div className="card-subtitle">按时间倒序展示最近 50 条，可直接展开、复制或查看详情。</div>
+            </div>
+          </div>
+          <div className="qa-feed">
             {latestRows.length > 0 ? (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>时间</th>
-                    <th>项目</th>
-                    <th>意图</th>
-                    <th>问题</th>
-                    <th>回答</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {latestRows.map((r, idx) => (
-                    <tr
-                      key={`${r.sessionId}_${idx}`}
-                      className="table-row"
-                      onClick={() => setSelectedRow(r)}
-                    >
-                      <td className="td-muted">
-                        {(r.questionTime ?? r.answerTime)?.toLocaleString() ?? '-'}
-                      </td>
-                      <td>
-                        {r.projectName ? (
-                          <span className="tag tag-project">{r.projectName}</span>
-                        ) : (
-                          <span className="td-muted">-</span>
-                        )}
-                      </td>
-                      <td>
-                        {r.intent ? (
-                          <span className="tag tag-intent">{r.intent}</span>
-                        ) : (
-                          <span className="td-muted">-</span>
-                        )}
-                      </td>
-                      <td className="td-wide">
-                        <div className="clamp-2">{r.question || '-'}</div>
-                      </td>
-                      <td className="td-wide">
-                        <div className="clamp-2">{r.answer || '-'}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              latestRows.map((r, idx) => {
+                const rowKey = `${r.sessionId}_${idx}`
+                const expanded = expandedRowKey === rowKey
+                return (
+                  <div key={rowKey} className={`qa-item ${expanded ? 'qa-item-expanded' : ''}`}>
+                    <div className="qa-item-head">
+                      <div className="qa-meta">
+                        <span className="td-muted">
+                          {(r.questionTime ?? r.answerTime)?.toLocaleString() ?? '-'}
+                        </span>
+                        {r.projectName ? <span className="tag tag-project">{r.projectName}</span> : null}
+                        {r.intent ? <span className="tag tag-intent">{r.intent}</span> : null}
+                      </div>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setExpandedRowKey(expanded ? null : rowKey)
+                        }}
+                      >
+                        {expanded ? '收起' : '展开'}
+                      </button>
+                    </div>
+
+                    <div className="qa-block">
+                      <div className="qa-label">问题</div>
+                      <div className={expanded ? 'qa-text' : 'qa-text clamp-2'}>{r.question || '-'}</div>
+                    </div>
+
+                    <div className="qa-block">
+                      <div className="qa-label">回答</div>
+                      <div className={expanded ? 'qa-text' : 'qa-text clamp-3'}>{r.answer || '-'}</div>
+                    </div>
+
+                    <div className="qa-actions">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          void copyRowContent(r, 'question')
+                        }}
+                      >
+                        复制问题
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          void copyRowContent(r, 'answer')
+                        }}
+                      >
+                        复制回答
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          void copyRowContent(r, 'all')
+                        }}
+                      >
+                        复制整条
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setSelectedRow(r)
+                        }}
+                      >
+                        查看详情
+                      </button>
+                    </div>
+                  </div>
+                )
+              })
             ) : (
               <div className="empty-state">
                 <div className="empty-icon">📭</div>

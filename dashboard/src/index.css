@@ -757,6 +757,99 @@ textarea:focus {
   overflow: hidden;
 }
 
+.clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.qa-feed {
+  display: grid;
+  gap: 12px;
+  max-height: 760px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.qa-item {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 14px;
+  padding: 12px;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.qa-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124, 92, 255, 0.28);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 16px 30px -22px rgba(0, 0, 0, 0.35);
+}
+
+.qa-item-expanded {
+  border-color: rgba(124, 92, 255, 0.32);
+  background: rgba(124, 92, 255, 0.06);
+}
+
+:root[data-theme='light'] .qa-item {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(15, 23, 42, 0.02);
+}
+
+:root[data-theme='light'] .qa-item:hover {
+  border-color: rgba(124, 92, 255, 0.22);
+  background: rgba(124, 92, 255, 0.04);
+  box-shadow: 0 16px 30px -22px rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme='light'] .qa-item-expanded {
+  border-color: rgba(124, 92, 255, 0.24);
+  background: rgba(124, 92, 255, 0.05);
+}
+
+.qa-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.qa-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qa-block + .qa-block {
+  margin-top: 10px;
+}
+
+.qa-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.qa-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.qa-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -921,6 +1014,10 @@ textarea:focus {
   }
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+  .qa-item-head {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
