@@ -34,7 +34,11 @@ export function Modal(props: {
   if (!open) return null
 
   return (
-    <div className="modal-overlay" role="presentation" onMouseDown={onClose}>
+    <div
+      className={variant === 'drawer' ? 'modal-overlay modal-overlay-drawer' : 'modal-overlay'}
+      role="presentation"
+      onMouseDown={onClose}
+    >
       <div
         className={variant === 'drawer' ? 'modal modal-drawer' : 'modal'}
         role="dialog"
